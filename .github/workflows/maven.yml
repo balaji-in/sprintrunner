@@ -3,16 +3,51 @@ name: Java CI with Maven
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  build:
-    name: Build
+  quality:
+    name: Build and quality tests
     runs-on: ubuntu-latest
     steps:
-      - name: Initialize build
-        run: echo "Initializing demo Maven build"
-      - name: Compile
-        run: echo "Demo compilation completed successfully"
-      - name: Run tests
-        run: echo "Demo tests completed successfully"
-      - name: Package application
-        run: echo "Demo package created successfully"
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Unit tests
+        run: mvn -B clean test
+
+      - name: Functional tests
+        run: mvn -B verify -Pfunctional-tests -DskipUnitTests
+
+      - name: Performance tests
+        run: mvn -B verify -Pperformance-tests -DskipUnitTests
+
+      - name: Code coverage
+        run: mvn -B jacoco:report@coverage-report jacoco:check@coverage-check
+
+      - name: Generate demo quality data
+        run: python3 scripts/generate-demo-reports.py
+
+      - name: Add quality summary
+        run: cat target/demo-reports/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test and quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            target/unit-test-reports/
+            target/functional-test-reports/
+            target/performance-test-reports/
+            target/site/jacoco/
+            target/demo-reports/
