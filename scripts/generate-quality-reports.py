@@ -65,9 +65,9 @@ def github_metadata():
         "buildNumber": os.getenv("GITHUB_RUN_NUMBER", "local"),
         "buildId": os.getenv("GITHUB_RUN_ID", "local"),
         "attemptNumber": os.getenv("GITHUB_RUN_ATTEMPT", "1"),
-        "workflow": os.getenv("GITHUB_WORKFLOW", "Java CI with Maven"),
+        "workflow": os.getenv("GITHUB_WORKFLOW", "sprintrunner-quality.yml"),
         "repository": os.getenv("GITHUB_REPOSITORY", "balaji-in/sprintrunner"),
-        "pipelineName": os.getenv("GITHUB_WORKFLOW", "maven.yml"),
+        "pipelineName": os.getenv("GITHUB_WORKFLOW", "sprintrunner-quality.yml"),
         "stageName": os.getenv("SN_STAGE_NAME", "Build and quality tests"),
         "dataSource": "maven-junit-xml",
         "mockData": False,
@@ -117,6 +117,14 @@ def performance_payload(result, timestamp):
         "stageName": os.getenv("SN_STAGE_NAME", "Build and quality tests"),
         "testType": "Load",
         "name": "Sprint planner load test",
+        # Although ServiceNow documents a performance-specific schema, DPR's
+        # Performance tests widget also aggregates the standard result counts.
+        "passedTests": result["passed"],
+        "failedTests": result["failures"] + result["errors"],
+        "skippedTests": result["skipped"],
+        "blockedTests": 0,
+        "totalTests": result["tests"],
+        "passingPercent": round(result["passed"] / result["tests"] * 100.0, 1),
         "duration": round(duration, 6),
         "maximumVirtualUsers": 1,
         "throughput": "{:.2f}/sec".format(throughput),
@@ -185,8 +193,8 @@ def write_json(filename, payload):
         output_file.write("\n")
 
 
-def write_consolidated_junit(source_directory, filename):
-    report = ElementTree.Element("testsuites")
+def write_consolidated_junit(source_directory, filename, display_name):
+    report = ElementTree.Element("testsuites", {"name": display_name})
     totals = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0, "time": 0.0}
     files = sorted((TARGET / source_directory).glob("TEST-*.xml"))
     if not files:
@@ -217,7 +225,11 @@ def main():
 
     write_json("servicenow-unit-tests.json", test_payload(
         "SprintRunner unit tests", "JUnit", unit, timestamp))
-    write_consolidated_junit("unit-test-reports", "servicenow-unit-tests.xml")
+    write_consolidated_junit(
+        "unit-test-reports",
+        "servicenow-unit-tests.xml",
+        "SprintRunner unit tests",
+    )
     write_json("servicenow-functional-tests.json", test_payload(
         "SprintRunner smoke tests", "Smoke", functional, timestamp))
     write_json("servicenow-performance-tests.json", performance_payload(performance, timestamp))
