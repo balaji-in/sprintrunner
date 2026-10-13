@@ -10,6 +10,12 @@ Both Maven workflows are started manually from the GitHub Actions page. They com
 sprint-planning feature and produce the following evidence without calling ServiceNow,
 SonarQube, or a package registry:
 
+The sample domain includes backlog tracking, sprint capacity, velocity, burndown, delivery risk,
+release planning, team allocation, work prioritization, iteration metrics, and deployment
+windows. Each of those ten production classes has a dedicated JUnit class with ten test methods.
+Together with the original planner and greeting tests, the current workflow executes 106 unit
+tests, one functional test, and one performance test.
+
 - JUnit XML unit-test results in `target/unit-test-reports`
 - JUnit XML functional smoke-test results in `target/functional-test-reports`
 - JUnit XML load-test results in `target/performance-test-reports`
