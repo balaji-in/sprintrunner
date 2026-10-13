@@ -1,4 +1,4 @@
-name: sprintrunner-quality.yml
+name: maven.yml
 
 on:
   workflow_dispatch:
