@@ -67,16 +67,18 @@ def github_metadata():
         "attemptNumber": os.getenv("GITHUB_RUN_ATTEMPT", "1"),
         "workflow": os.getenv("GITHUB_WORKFLOW", "Java CI with Maven"),
         "repository": os.getenv("GITHUB_REPOSITORY", "balaji-in/sprintrunner"),
-        "pipelineName": os.getenv("GITHUB_WORKFLOW", "Java CI with Maven"),
+        "pipelineName": os.getenv("GITHUB_WORKFLOW", "maven.yml"),
+        "stageName": os.getenv("SN_STAGE_NAME", "Build and quality tests"),
         "dataSource": "maven-junit-xml",
         "mockData": False,
     }
 
 
-def test_payload(name, test_type, stage_name, result, timestamp):
+def test_payload(name, test_type, result, timestamp):
     payload = github_metadata()
     payload.update({
-        "stageName": stage_name,
+        # ServiceNow correlates this value with the GitHub job display name.
+        "stageName": os.getenv("SN_STAGE_NAME", "Build and quality tests"),
         "testType": test_type,
         "testSummaries": [{
             "name": name,
@@ -112,7 +114,7 @@ def performance_payload(result, timestamp):
 
     payload = github_metadata()
     payload.update({
-        "stageName": "Performance tests",
+        "stageName": os.getenv("SN_STAGE_NAME", "Build and quality tests"),
         "testType": "Load",
         "name": "Sprint planner load test",
         "duration": round(duration, 6),
@@ -146,7 +148,8 @@ def quality_payload(coverage):
         "sqale_index": "35",
         "duplicated_lines_density": "1.2",
     }
-    return {
+    payload = github_metadata()
+    payload.update({
         "containsMockData": True,
         "coverageDataSource": "jacoco-csv",
         "measuredMetrics": ["coverage", "ncloc", "lines_to_cover", "uncovered_lines"],
@@ -172,13 +175,36 @@ def quality_payload(coverage):
             "codeSmells": 5,
             "technicalDebtMinutes": 35,
         },
-    }
+    })
+    return payload
 
 
 def write_json(filename, payload):
     with (OUTPUT / filename).open("w", encoding="utf-8") as output_file:
         json.dump(payload, output_file, indent=2)
         output_file.write("\n")
+
+
+def write_consolidated_junit(source_directory, filename):
+    report = ElementTree.Element("testsuites")
+    totals = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0, "time": 0.0}
+    files = sorted((TARGET / source_directory).glob("TEST-*.xml"))
+    if not files:
+        raise RuntimeError("No JUnit XML reports found in {}".format(source_directory))
+
+    for report_file in files:
+        root = ElementTree.parse(str(report_file)).getroot()
+        suites = [root] if root.tag == "testsuite" else list(root.findall("testsuite"))
+        for suite in suites:
+            report.append(suite)
+            for field in ("tests", "failures", "errors", "skipped"):
+                totals[field] += int(suite.attrib.get(field, 0))
+            totals["time"] += float(suite.attrib.get("time", 0.0))
+
+    for field, value in totals.items():
+        report.set(field, str(value))
+    ElementTree.ElementTree(report).write(
+        str(OUTPUT / filename), encoding="utf-8", xml_declaration=True)
 
 
 def main():
@@ -190,9 +216,10 @@ def main():
     timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     write_json("servicenow-unit-tests.json", test_payload(
-        "SprintRunner unit tests", "JUnit", "Unit tests", unit, timestamp))
+        "SprintRunner unit tests", "JUnit", unit, timestamp))
+    write_consolidated_junit("unit-test-reports", "servicenow-unit-tests.xml")
     write_json("servicenow-functional-tests.json", test_payload(
-        "SprintRunner smoke tests", "Smoke", "Functional tests", functional, timestamp))
+        "SprintRunner smoke tests", "Smoke", functional, timestamp))
     write_json("servicenow-performance-tests.json", performance_payload(performance, timestamp))
     write_json("sonar-quality-summary.json", quality_payload(coverage))
 
