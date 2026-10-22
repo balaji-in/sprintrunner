@@ -183,54 +183,41 @@ jobs:
         continue-on-error: true
         run: mvn -B jacoco:report@coverage-report jacoco:check@coverage-check
 
-      - name: Generate reports from Maven test output
-        if: always()
-        env:
-          SN_ORCHESTRATION_TOOL_ID: ${{ secrets.TOOL_ID }}
-          SN_STAGE_NAME: Build and quality tests
-        run: python3 scripts/generate-quality-reports.py
-
       - name: Publish unit test results to ServiceNow
         if: always()
-        uses: ServiceNow/servicenow-devops-test-report@v6.0.0
+        uses: ServiceNow/servicenow-devops-test-report@v7.1.0
         with:
           devops-integration-token: ${{ secrets.DEVOPS_INTEGRATION_TOKEN }}
           instance-url: ${{ secrets.INSTANCE_URL }}
           tool-id: ${{ secrets.TOOL_ID }}
           context-github: ${{ toJSON(github) }}
           job-name: Build and quality tests
-          xml-report-filename: target/quality-reports/servicenow-unit-tests.xml
+          xml-report-filename: target/unit-test-reports/
           test-summary-name: SprintRunner unit tests
 
       - name: Publish functional test results to ServiceNow
         if: always()
-        env:
-          SN_INSTANCE_URL: ${{ secrets.INSTANCE_URL }}
-          SN_ORCHESTRATION_TOOL_ID: ${{ secrets.TOOL_ID }}
-          SN_DEVOPS_INTEGRATION_TOKEN: ${{ secrets.DEVOPS_INTEGRATION_TOKEN }}
-        run: |
-          curl --fail-with-body --show-error --silent \
-            --request POST \
-            --header "Accept: application/json" \
-            --header "Content-Type: application/json" \
-            --header "Authorization: sn_devops.DevOpsToken ${SN_ORCHESTRATION_TOOL_ID}:${SN_DEVOPS_INTEGRATION_TOKEN}" \
-            --data-binary @target/quality-reports/servicenow-functional-tests.json \
-            "${SN_INSTANCE_URL%/}/api/sn_devops/v2/devops/tool/test?toolId=${SN_ORCHESTRATION_TOOL_ID}&orchestrationToolId=${SN_ORCHESTRATION_TOOL_ID}&testType=Smoke"
+        uses: ServiceNow/servicenow-devops-test-report@v7.1.0
+        with:
+          devops-integration-token: ${{ secrets.DEVOPS_INTEGRATION_TOKEN }}
+          instance-url: ${{ secrets.INSTANCE_URL }}
+          tool-id: ${{ secrets.TOOL_ID }}
+          context-github: ${{ toJSON(github) }}
+          job-name: Build and quality tests
+          xml-report-filename: target/functional-test-reports/
+          test-summary-name: SprintRunner smoke tests
 
       - name: Publish performance test results to ServiceNow
         if: always()
-        env:
-          SN_INSTANCE_URL: ${{ secrets.INSTANCE_URL }}
-          SN_ORCHESTRATION_TOOL_ID: ${{ secrets.TOOL_ID }}
-          SN_DEVOPS_INTEGRATION_TOKEN: ${{ secrets.DEVOPS_INTEGRATION_TOKEN }}
-        run: |
-          curl --fail-with-body --show-error --silent \
-            --request POST \
-            --header "Accept: application/json" \
-            --header "Content-Type: application/json" \
-            --header "Authorization: sn_devops.DevOpsToken ${SN_ORCHESTRATION_TOOL_ID}:${SN_DEVOPS_INTEGRATION_TOKEN}" \
-            --data-binary @target/quality-reports/servicenow-performance-tests.json \
-            "${SN_INSTANCE_URL%/}/api/sn_devops/v2/devops/tool/test?toolId=${SN_ORCHESTRATION_TOOL_ID}&orchestrationToolId=${SN_ORCHESTRATION_TOOL_ID}&testType=Load"
+        uses: ServiceNow/servicenow-devops-test-report@v7.1.0
+        with:
+          devops-integration-token: ${{ secrets.DEVOPS_INTEGRATION_TOKEN }}
+          instance-url: ${{ secrets.INSTANCE_URL }}
+          tool-id: ${{ secrets.TOOL_ID }}
+          context-github: ${{ toJSON(github) }}
+          job-name: Build and quality tests
+          xml-report-filename: target/performance-test-reports/
+          test-summary-name: SprintRunner load tests
 
       # DPR quality widgets only read Software Quality Scan Summary/Detail records.
       # This official action creates those records and relates them to this job.
@@ -254,11 +241,7 @@ jobs:
         run: |
           echo "::warning::DPR quality widgets require an onboarded SonarQube/SonarCloud tool plus SONAR_HOST_URL and SONAR_PROJECT_KEY repository variables. Test and JaCoCo reports are still available as workflow artifacts."
 
-      - name: Add quality summary
-        if: always()
-        run: cat target/quality-reports/summary.md >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload test and quality reports
+      - name: Upload test and coverage reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -269,7 +252,6 @@ jobs:
             target/functional-test-reports/
             target/performance-test-reports/
             target/site/jacoco/
-            target/quality-reports/
 
       - name: Fail job if any test or coverage step failed
         if: always()
