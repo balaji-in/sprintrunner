@@ -17,6 +17,7 @@ jobs:
   readiness-check:
     name: Release readiness gate
     needs: quality
+    if: ${{ needs.quality.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
