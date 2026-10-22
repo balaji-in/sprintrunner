@@ -16,6 +16,7 @@ permissions:
 jobs:
   readiness-check:
     name: Release readiness gate
+    needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -137,13 +138,11 @@ jobs:
             exit 1
           fi
 
-          echo "Release $VERSION is ready. Build and test jobs may continue."
+          echo "Release $VERSION is ready. Deployment may continue."
 
-  # GitHub will not start this job unless the readiness gate succeeds, so no
-  # checkout, build, or test command can run for a release that is not ready.
+  # Build and quality tests run before the release readiness gate.
   quality:
     name: Build and quality tests
-    needs: readiness-check
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -275,3 +274,12 @@ jobs:
             echo "::error::Failed:$failed. Results were published to ServiceNow before failing."
             exit 1
           fi
+
+  # GitHub only starts this job when the release readiness gate succeeds.
+  deployment:
+    name: Deployment
+    needs: readiness-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Simulate deployment
+        run: echo "Dummy deployment completed for ${{ inputs.version }}"
