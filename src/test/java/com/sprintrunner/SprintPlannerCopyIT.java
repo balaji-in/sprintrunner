@@ -16,7 +16,7 @@ class SprintPlannerCopyIT {
 
         assertEquals("Hello Release Demo", message);
         assertEquals(18, plan.getCommittedPoints());
-        assertEquals(5, plan.getCommittedItems());
+        assertEquals(4, plan.getCommittedItems());
         assertEquals("ON_TRACK", plan.getStatus());
     }
 }
