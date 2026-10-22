@@ -55,6 +55,7 @@ jobs:
           context-github: ${{ toJSON(github) }}
           job-name: Build and quality tests
           xml-report-filename: target/unit-test-reports/
+          test-type: JUnit
           test-summary-name: SprintRunner unit tests
 
       - name: Publish functional test results to ServiceNow
@@ -67,6 +68,7 @@ jobs:
           context-github: ${{ toJSON(github) }}
           job-name: Build and quality tests
           xml-report-filename: target/functional-test-reports/
+          test-type: Smoke
           test-summary-name: SprintRunner smoke tests
 
       - name: Publish performance test results to ServiceNow
@@ -79,6 +81,7 @@ jobs:
           context-github: ${{ toJSON(github) }}
           job-name: Build and quality tests
           xml-report-filename: target/performance-test-reports/
+          test-type: Load
           test-summary-name: SprintRunner load tests
 
       - name: Publish software quality results to ServiceNow
